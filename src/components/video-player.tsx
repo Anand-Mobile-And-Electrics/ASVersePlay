@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 type PlayerSource = {
   id: string;
@@ -20,24 +20,34 @@ const STORAGE_KEY = "asverse_preferred_server";
 export function VideoPlayer({ title, sources, embedFallbackUrl }: VideoPlayerProps) {
   const orderedSources = useMemo(() => [...sources], [sources]);
 
-  const [activeIndex, setActiveIndex] = useState(() => {
-    if (typeof window === "undefined") return 0;
-    const preferred = window.localStorage.getItem(STORAGE_KEY);
-    const found = orderedSources.findIndex((s) => s.id === preferred);
-    return found >= 0 ? found : 0;
-  });
+  // Always start with the same value on both server and client
+  const [activeIndex, setActiveIndex] = useState(0);
   const [useEmbedFallback, setUseEmbedFallback] = useState(false);
+
+  // Restore preferred server after hydration
+  useEffect(() => {
+    const preferred = localStorage.getItem(STORAGE_KEY);
+
+    if (!preferred) return;
+
+    const found = orderedSources.findIndex((s) => s.id === preferred);
+
+    if (found >= 0) {
+      setActiveIndex(found);
+    }
+  }, [orderedSources]);
 
   const active = orderedSources[activeIndex] ?? orderedSources[0];
 
   const switchServer = (index: number) => {
     const chosen = orderedSources[index];
+
     if (!chosen) return;
+
     setUseEmbedFallback(false);
     setActiveIndex(index);
-    if (typeof window !== "undefined") {
-      window.localStorage.setItem(STORAGE_KEY, chosen.id);
-    }
+
+    localStorage.setItem(STORAGE_KEY, chosen.id);
   };
 
   const onPlaybackError = () => {
@@ -52,7 +62,11 @@ export function VideoPlayer({ title, sources, embedFallbackUrl }: VideoPlayerPro
   };
 
   if (!active && !embedFallbackUrl) {
-    return <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-red-700">No valid stream source available.</div>;
+    return (
+      <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-red-700">
+        No valid stream source available.
+      </div>
+    );
   }
 
   return (
@@ -75,7 +89,13 @@ export function VideoPlayer({ title, sources, embedFallbackUrl }: VideoPlayerPro
             allowFullScreen
           />
         ) : (
-          <video key={active?.id} controls className="aspect-video w-full" onError={onPlaybackError} preload="metadata">
+          <video
+            key={active?.id}
+            controls
+            className="aspect-video w-full"
+            onError={onPlaybackError}
+            preload="metadata"
+          >
             {active?.sourceUrl ? <source src={active.sourceUrl} /> : null}
             Your browser does not support this media source.
           </video>
@@ -103,7 +123,9 @@ export function VideoPlayer({ title, sources, embedFallbackUrl }: VideoPlayerPro
             type="button"
             onClick={() => setUseEmbedFallback(true)}
             className={`rounded-full px-3 py-1.5 text-sm font-medium transition ${
-              useEmbedFallback ? "bg-emerald-600 text-white" : "bg-emerald-100 text-emerald-800 hover:bg-emerald-200"
+              useEmbedFallback
+                ? "bg-emerald-600 text-white"
+                : "bg-emerald-100 text-emerald-800 hover:bg-emerald-200"
             }`}
           >
             Use Embed Fallback

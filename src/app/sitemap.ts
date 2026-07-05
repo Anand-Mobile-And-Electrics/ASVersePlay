@@ -1,25 +1,27 @@
+import { MetadataRoute } from "next";
 import { db } from "@/db";
-import { contents, liveEvents } from "@/db/schema";
-import type { MetadataRoute } from "next";
+import { contents } from "@/db/schema";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const base = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
+  const siteUrl =
+    process.env.NEXT_PUBLIC_SITE_URL ||
+    "https://as-verse-play.vercel.app";
 
-  const [contentRows, liveRows] = await Promise.all([
-    db.select({ slug: contents.slug, updatedAt: contents.updatedAt }).from(contents).limit(5000),
-    db.select({ slug: liveEvents.slug, updatedAt: liveEvents.updatedAt }).from(liveEvents).limit(5000),
-  ]);
+  const data = await db.select().from(contents);
 
   return [
-    { url: `${base}/`, lastModified: new Date() },
-    { url: `${base}/live`, lastModified: new Date() },
-    ...contentRows.map((row) => ({
-      url: `${base}/content/${row.slug}`,
-      lastModified: row.updatedAt,
-    })),
-    ...liveRows.map((row) => ({
-      url: `${base}/live-events/${row.slug}`,
-      lastModified: row.updatedAt,
+    {
+      url: siteUrl,
+      lastModified: new Date(),
+    },
+    {
+      url: `${siteUrl}/live`,
+      lastModified: new Date(),
+    },
+
+    ...data.map((item) => ({
+      url: `${siteUrl}/content/${item.slug}`,
+      lastModified: item.updatedAt,
     })),
   ];
 }

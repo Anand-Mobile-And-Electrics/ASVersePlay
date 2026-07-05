@@ -1,44 +1,119 @@
 import { db } from "@/db";
 import { contents, liveEvents } from "@/db/schema";
 import { ensurePlatformBootstrap } from "@/lib/bootstrap";
-import { and, desc, eq, isNull, lte, or } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 
 export const dynamic = "force-dynamic";
 
 export default async function HomePage() {
   await ensurePlatformBootstrap();
 
-  const now = new Date();
+  const [
+    featured,
+    trending,
+    latest,
 
-  const publicFilter = and(
-    eq(contents.visibility, "public"),
-    or(
-      isNull(contents.publishAt),
-      lte(contents.publishAt, now)
-    )
-  );
+    movies,
+    webSeries,
+    anime,
+    tvShows,
+    liveChannels,
+    documentaries,
 
-  const [featured, trending, latest, upcomingEvents] = await Promise.all([
+    upcomingEvents,
+  ] = await Promise.all([
     db
       .select()
       .from(contents)
-      .where(and(publicFilter, eq(contents.isFeatured, true)))
+      .where(eq(contents.isFeatured, true))
       .orderBy(desc(contents.createdAt))
       .limit(8),
 
     db
       .select()
       .from(contents)
-      .where(and(publicFilter, eq(contents.isTrending, true)))
+      .where(eq(contents.isTrending, true))
       .orderBy(desc(contents.createdAt))
       .limit(8),
 
     db
       .select()
       .from(contents)
-      .where(publicFilter)
+      .where(eq(contents.visibility, "public"))
       .orderBy(desc(contents.createdAt))
-      .limit(24),
+      .limit(12),
+
+    db
+      .select()
+      .from(contents)
+      .where(
+        and(
+          eq(contents.visibility, "public"),
+          eq(contents.contentType, "movie")
+        )
+      )
+      .orderBy(desc(contents.createdAt))
+      .limit(12),
+
+    db
+      .select()
+      .from(contents)
+      .where(
+        and(
+          eq(contents.visibility, "public"),
+          eq(contents.contentType, "web_series")
+        )
+      )
+      .orderBy(desc(contents.createdAt))
+      .limit(12),
+
+    db
+      .select()
+      .from(contents)
+      .where(
+        and(
+          eq(contents.visibility, "public"),
+          eq(contents.contentType, "anime")
+        )
+      )
+      .orderBy(desc(contents.createdAt))
+      .limit(12),
+
+    db
+      .select()
+      .from(contents)
+      .where(
+        and(
+          eq(contents.visibility, "public"),
+          eq(contents.contentType, "tv_show")
+        )
+      )
+      .orderBy(desc(contents.createdAt))
+      .limit(12),
+
+    db
+      .select()
+      .from(contents)
+      .where(
+        and(
+          eq(contents.visibility, "public"),
+          eq(contents.contentType, "live_channel")
+        )
+      )
+      .orderBy(desc(contents.createdAt))
+      .limit(12),
+
+    db
+      .select()
+      .from(contents)
+      .where(
+        and(
+          eq(contents.visibility, "public"),
+          eq(contents.contentType, "documentary")
+        )
+      )
+      .orderBy(desc(contents.createdAt))
+      .limit(12),
 
     db
       .select()
@@ -47,208 +122,103 @@ export default async function HomePage() {
       .limit(6),
   ]);
 
+  const sections = [
+    { title: "Latest Releases", items: latest },
+    { title: "Featured", items: featured },
+    { title: "Trending", items: trending },
+    { title: "Movies", items: movies },
+    { title: "Web Series", items: webSeries },
+    { title: "Anime", items: anime },
+    { title: "TV Shows", items: tvShows },
+    { title: "Live Channels", items: liveChannels },
+    { title: "Documentaries", items: documentaries },
+  ];
+
   return (
-    <main className="mx-auto w-full max-w-7xl space-y-12 px-6 py-10">
+    <main className="mx-auto max-w-7xl space-y-16 px-6 py-10">
 
       {/* Hero */}
-      <section className="rounded-3xl border border-indigo-500/30 bg-gradient-to-br from-indigo-700 via-slate-900 to-slate-950 p-10 shadow-2xl">
-        <p className="text-sm uppercase tracking-[0.18em] text-indigo-300">
-          Enterprise Open OTT Platform
-        </p>
 
-        <h1 className="mt-4 text-5xl font-bold text-white">
+      <section className="rounded-3xl bg-gradient-to-r from-indigo-700 via-purple-700 to-slate-900 p-10">
+        <h1 className="text-5xl font-bold text-white">
           ASVerse Play
         </h1>
 
-        <p className="mt-5 max-w-3xl text-slate-300">
-          Stream Movies, Web Series, Anime, Live Sports, IPTV, TV Channels,
-          News and more with a scalable enterprise streaming platform built
-          using Next.js, PostgreSQL and Drizzle ORM.
+        <p className="mt-4 max-w-3xl text-slate-200">
+          Stream Movies, Web Series, Anime, Live Sports, IPTV,
+          TV Shows and much more.
         </p>
       </section>
 
-      {/* Featured */}
+      {sections.map((section) => (
+        <section key={section.title}>
+          <h2 className="mb-5 text-3xl font-bold text-white">
+            {section.title}
+          </h2>
+
+          {section.items.length === 0 ? (
+            <div className="rounded-xl border border-slate-800 bg-slate-900 p-6 text-slate-400">
+              No content available.
+            </div>
+          ) : (
+            <div className="grid gap-5 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
+              {section.items.map((item) => (
+                <a
+                  key={item.id}
+                  href={`/content/${item.slug}`}
+                  className="rounded-2xl border border-slate-800 bg-slate-900 transition hover:border-indigo-500"
+                >
+                  <div className="aspect-[2/3] rounded-t-2xl bg-slate-800" />
+
+                  <div className="p-4">
+                    <p className="text-xs uppercase text-indigo-400">
+                      {item.contentType.replaceAll("_", " ")}
+                    </p>
+
+                    <h3 className="mt-2 line-clamp-2 font-semibold text-white">
+                      {item.title}
+                    </h3>
+                  </div>
+                </a>
+              ))}
+            </div>
+          )}
+        </section>
+      ))}
+
       <section>
         <h2 className="mb-5 text-3xl font-bold text-white">
-          ⭐ Featured
+          Upcoming Live Events
         </h2>
 
-        {featured.length ? (
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {featured.map((item) => (
-              <a
-                key={item.id}
-                href={`/content/${item.slug}`}
-                className="rounded-2xl border border-slate-800 bg-slate-900 p-5 transition hover:border-indigo-500"
-              >
-                <p className="text-xs uppercase tracking-wide text-indigo-300">
-                  {item.contentType.replaceAll("_", " ")}
-                </p>
-
-                <h3 className="mt-2 text-lg font-semibold text-white">
-                  {item.title}
-                </h3>
-
-                <p className="mt-2 text-sm text-slate-400">
-                  {item.releaseYear ?? "Upcoming"}
-                </p>
-              </a>
-            ))}
+        {upcomingEvents.length === 0 ? (
+          <div className="rounded-xl border border-slate-800 bg-slate-900 p-6 text-slate-400">
+            No Live Events
           </div>
         ) : (
-          <p className="text-slate-400">No featured content.</p>
-        )}
-      </section>
-
-      {/* Trending */}
-      <section>
-        <h2 className="mb-5 text-3xl font-bold text-white">
-          🔥 Trending
-        </h2>
-
-        {trending.length ? (
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {trending.map((item) => (
-              <a
-                key={item.id}
-                href={`/content/${item.slug}`}
-                className="rounded-2xl border border-slate-800 bg-slate-900 p-5 transition hover:border-red-500"
-              >
-                <p className="text-xs uppercase tracking-wide text-red-300">
-                  {item.contentType.replaceAll("_", " ")}
-                </p>
-
-                <h3 className="mt-2 text-lg font-semibold text-white">
-                  {item.title}
-                </h3>
-
-                <p className="mt-2 text-sm text-slate-400">
-                  {item.releaseYear ?? "Upcoming"}
-                </p>
-              </a>
-            ))}
-          </div>
-        ) : (
-          <p className="text-slate-400">No trending content.</p>
-        )}
-      </section>
-
-      {/* Latest */}
-      <section>
-        <h2 className="mb-5 text-3xl font-bold text-white">
-          🆕 Latest Content
-        </h2>
-
-        {latest.length ? (
-          <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
-            {latest.map((item) => (
-              <a
-                key={item.id}
-                href={`/content/${item.slug}`}
-                className="rounded-2xl border border-slate-800 bg-slate-900 p-5 transition hover:border-indigo-500 hover:bg-slate-800"
-              >
-                <p className="text-xs uppercase tracking-wide text-slate-400">
-                  {item.contentType.replaceAll("_", " ")}
-                </p>
-
-                <h3 className="mt-2 line-clamp-2 text-lg font-semibold text-white">
-                  {item.title}
-                </h3>
-
-                <p className="mt-2 text-sm text-slate-400">
-                  {item.releaseYear ?? "Upcoming"}
-                </p>
-
-                <div className="mt-4 flex gap-2">
-                  {item.isFeatured && (
-                    <span className="rounded bg-indigo-600 px-2 py-1 text-xs text-white">
-                      Featured
-                    </span>
-                  )}
-
-                  {item.isTrending && (
-                    <span className="rounded bg-red-600 px-2 py-1 text-xs text-white">
-                      Trending
-                    </span>
-                  )}
-                </div>
-              </a>
-            ))}
-          </div>
-        ) : (
-          <p className="text-slate-400">No content available.</p>
-        )}
-      </section>
-
-      {/* Live Sports */}
-      <section>
-        <h2 className="mb-5 text-3xl font-bold text-white">
-          🏆 Live Sports
-        </h2>
-
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {[
-            "Cricket",
-            "Football",
-            "Formula 1",
-            "Esports",
-          ].map((sport) => (
-            <a
-              key={sport}
-              href="/live"
-              className="rounded-2xl border border-slate-800 bg-slate-900 p-5 hover:border-indigo-500"
-            >
-              <p className="text-xs uppercase tracking-wide text-indigo-300">
-                Live Category
-              </p>
-
-              <h3 className="mt-2 text-lg font-semibold text-white">
-                {sport}
-              </h3>
-
-              <p className="mt-2 text-sm text-slate-400">
-                Watch live events
-              </p>
-            </a>
-          ))}
-        </div>
-      </section>
-
-      {/* Live Events */}
-      <section>
-        <h2 className="mb-5 text-3xl font-bold text-white">
-          📺 Live Events
-        </h2>
-
-        {upcomingEvents.length ? (
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-5 md:grid-cols-3">
             {upcomingEvents.map((event) => (
               <a
                 key={event.id}
                 href={`/live-events/${event.slug}`}
                 className="rounded-2xl border border-slate-800 bg-slate-900 p-5 hover:border-indigo-500"
               >
-                <p className="text-xs uppercase tracking-wide text-indigo-300">
+                <p className="text-xs uppercase text-indigo-400">
                   {event.sportOrCategory}
                 </p>
 
-                <h3 className="mt-2 text-lg font-semibold text-white">
+                <h3 className="mt-2 text-xl font-semibold text-white">
                   {event.title}
                 </h3>
 
-                <p className="mt-2 text-sm text-slate-400">
+                <p className="mt-2 text-slate-400">
                   {new Date(event.startTime).toLocaleString()}
                 </p>
               </a>
             ))}
           </div>
-        ) : (
-          <p className="text-slate-400">
-            No live events scheduled.
-          </p>
         )}
       </section>
-
     </main>
   );
 }
